@@ -1,5 +1,9 @@
 # Análisis de Trayectorias Peatonales
 
+integrantes: 
+Emiliano Toro Rojas
+Maximiliano Yañez Castillo
+
 Los argumentos permiten configurar el programa desde la terminal sin editar el código fuente. `--input` y `--output` tienen valores predeterminados y pueden cambiarse al ejecutar el programa.
 
 ## Ejecución básica
