@@ -16,8 +16,19 @@ class PreparacionTrayectorias(EtapaPipeline[list[Experimento], list[Experimento]
         contexto: ContextoPipeline,
     ) -> list[Experimento]:
         """Prepara las observaciones y trayectorias de cada experimento."""
-        raise NotImplementedError("Etapa pendiente de implementación")
+        for expe in experimentos:
+            total = len(expe.observaciones)
+            validas = self._validar_observaciones(expe.observaciones)
+            organizadas = self._organizar_observaciones(validas)
 
+            expe.observaciones = validas
+            expe.trayectorias = self._reconstruir_trayectorias(organizadas)
+            print("Experimentos:")
+            print(f" Descartados: {expe.nombre}: {total - len(validas)}")
+            print(f" trayectorias de Peatones: {len(expe.trayectorias)}")
+        return experimentos
+
+    
     def _validar_observaciones(
         self,
         observaciones: list[Observacion],
