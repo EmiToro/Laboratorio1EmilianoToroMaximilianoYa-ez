@@ -18,7 +18,7 @@ class Trayectoria:
 
     def calcular_desplazamiento(self) -> float:
         p = self._puntos()
-        return dist(p[0], p[-1]) if len(p) >= 2 else 0.0
+        return (dist(p[0], p[-1]) if len(p) >= 2 else 0.0)
 
     def calcular_velocidad_media(self, fps: float) -> float:
         if len(self.observaciones) < 2:
@@ -26,3 +26,27 @@ class Trayectoria:
         frames = self.observaciones[-1].frame - self.observaciones[0].frame
         tiempo = frames / fps
         return self.calcular_distancia_total() / tiempo if tiempo > 0 else 0.0
+
+
+    def calcularTiempoTotal(self, fps: float) -> float: #Calculamos el tiempo observado en segundos
+        if len(self.observaciones) < 2:
+            return 0.0
+        return (self.observaciones[-1].frame - self.observaciones[0].frame) / fps
+
+
+    def calcularVelocidades(self, fps: float) -> list[float]: #Se calcula velocidades por peaton y se retornan con la lista velocidades
+        p = self._puntos()
+        velocidades = []
+        for i in range(len(p) - 1):
+            p1 = self.observaciones[i]
+            p2 = self.observaciones[i + 1]
+            distancia = dist(p[i], p[i+1])
+            interTemp = (p2.frame - p1.frame) / fps
+            if interTemp > 0:
+                velocidades.append(distancia / interTemp)
+        return velocidades
+
+
+    def VelocidadMax(self, fps: float) -> float: #Calculamos la velocidad maxima y la retornamos
+        vel = self.calcularVelocidades(fps)
+        return (max(vel) if vel else 0.0)
