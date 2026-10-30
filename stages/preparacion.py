@@ -34,18 +34,31 @@ class PreparacionTrayectorias(EtapaPipeline[list[Experimento], list[Experimento]
         observaciones: list[Observacion],
     ) -> list[Observacion]:
         """Valida y retorna las observaciones de un experimento."""
-        raise NotImplementedError
+        return [obs for obs in observaciones if obs.frame >= 0]
 
     def _organizar_observaciones(
         self,
         observaciones: list[Observacion],
     ) -> dict[int, list[Observacion]]:
         """Organiza las observaciones por identificador de peatón."""
-        raise NotImplementedError
+        listaGrupos = {}
+        for obs in observaciones:
+            if obs.id_peaton not in listaGrupos:
+                listaGrupos[obs.id_peaton] = []
+            listaGrupos[obs.id_peaton].append(obs)
 
-    def _reconstruir_trayectorias(
+        
+        return {  #Revisar bien si funciona
+            id_peaton: sorted(obs, key=lambda o: o.frame) for id_peaton, obs in listaGrupos.items()
+        }
+
+    def _reconstruir_trayectorias( 
         self,
         observaciones_organizadas: dict[int, list[Observacion]],
     ) -> list[Trayectoria]:
         """Construye trayectorias desde las observaciones organizadas."""
-        raise NotImplementedError
+        trayect = []
+        for id_peaton, obs_list in observaciones_organizadas.items():
+            if len(obs_list) >= 2:
+                trayect.append(Trayectoria(id_peaton=id_peaton, observaciones=obs_list))
+        return trayect
