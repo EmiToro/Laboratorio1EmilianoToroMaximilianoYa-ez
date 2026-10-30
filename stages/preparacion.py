@@ -60,5 +60,5 @@ class PreparacionTrayectorias(EtapaPipeline[list[Experimento], list[Experimento]
         trayect = []
         for id_peaton, obs_list in observaciones_organizadas.items():
             if len(obs_list) >= 2:
-                trayect.append(Trayectoria(id_peaton=id_peaton, observaciones=obs_list))
+                trayect.append(Trayectoria(id_peaton, obs_list))
         return trayect
