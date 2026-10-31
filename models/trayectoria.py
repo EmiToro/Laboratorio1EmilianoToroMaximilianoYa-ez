@@ -54,4 +54,8 @@ class Trayectoria:
 
     def VelocidadMax(self, fps: float) -> float:
         velocidades = self.calcularVelocidades(fps)
-        return max(velocidades) if velocidades else 0.0
+
+        return max(
+            (velocidad for frame_i, frame_f, velocidad in velocidades),
+            default=0.0
+        )

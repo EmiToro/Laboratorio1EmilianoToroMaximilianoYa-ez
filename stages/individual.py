@@ -79,7 +79,7 @@ class AnalisisIndividual(EtapaPipeline[list[Experimento], list[Experimento]]):
         lista_detenciones = []
         inicio = None
 
-        for frame_i, frame_f, velocidad in trayectoria.calcular_velocidades_tramos(fps):
+        for frame_i, frame_f, velocidad in trayectoria.calcularVelocidades(fps):
             if velocidad < VelUmbral:
                 if inicio is None:
                     inicio = frame_i
