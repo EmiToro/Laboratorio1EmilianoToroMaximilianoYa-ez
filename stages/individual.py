@@ -7,8 +7,8 @@ from pipeline.etapa import EtapaPipeline
 
 
 
-UMBRAL_VELOCIDAD = 0.2  
-DURACION_MINIMA = 1
+VelUmbral = 0.2  
+duraMin = 1
 
 class AnalisisIndividual(EtapaPipeline[list[Experimento], list[Experimento]]):
     """Coordina el análisis de múltiples trayectorias y reúne sus indicadores."""
@@ -78,19 +78,19 @@ class AnalisisIndividual(EtapaPipeline[list[Experimento], list[Experimento]]):
         inicio = None
 
         for frame_i, frame_f, velocidad in trayectoria.calcular_velocidades_tramos(fps):
-            if velocidad < UMBRAL_VELOCIDAD:
+            if velocidad < VelUmbral:
                 if inicio is None:
                     inicio = frame_i
                 fin = frame_f
                 
             else:
                 if inicio is not None:
-                    if (fin - inicio) / fps >= DURACION_MINIMA:
+                    if (fin - inicio) / fps >= duraMin:
                         Listadetenciones.append((inicio, fin))
                 inicio = None
 
         if inicio is not None:
-            if (fin - inicio) / fps >= DURACION_MINIMA:
+            if (fin - inicio) / fps >= duraMin:
                 Listadetenciones.append((inicio, fin))
 
         return Listadetenciones
