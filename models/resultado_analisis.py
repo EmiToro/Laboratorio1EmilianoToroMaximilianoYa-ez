@@ -10,4 +10,4 @@ class ResultadoAnalisis:
     """Conserva los experimentos y los resultados de su comparación."""
 
     experimentos: list[Experimento]
-    comparacion: dict[str, dict[str, float]]
+    comparacion: dict[str, float]

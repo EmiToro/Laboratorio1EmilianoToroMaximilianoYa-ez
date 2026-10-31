@@ -55,7 +55,7 @@ class AnalisisIndividual(EtapaPipeline[list[Experimento], list[Experimento]]):
                 dist = math.sqrt((p2.x - p1.x)**2 + (p2.y - p1.y)**2)
                 velocidades_instantaneas.append(dist / dt)
         
-        velocidad_maxima = max(velocidades_instantaneas) if velocidades_instantaneas else 0.0
+        velocidad_maxima = trayectoria.VelocidadMax(fps)
 
         return {
             "pos_inicial_x": round(pos_inicial[0], 3),
@@ -76,28 +76,24 @@ class AnalisisIndividual(EtapaPipeline[list[Experimento], list[Experimento]]):
         fps: float | None,
     ) -> list[tuple[int, int]]:
         """Identifica intervalos de detención de una trayectoria."""
-        Listadetenciones = []
+        lista_detenciones = []
         inicio = None
 
         for frame_i, frame_f, velocidad in trayectoria.calcular_velocidades_tramos(fps):
             if velocidad < VelUmbral:
                 if inicio is None:
                     inicio = frame_i
+
                 fin = frame_f
-                
+
             else:
-                if inicio is not None:
-                    if (fin - inicio) / fps >= duraMin:
-                        Listadetenciones.append((inicio, fin))
+                if inicio is not None and (fin - inicio) / fps >= duraMin:
+                    lista_detenciones.append((inicio, fin))
+
                 inicio = None
+            return lista_detenciones
 
-        if inicio is not None:
-            if (fin - inicio) / fps >= duraMin:
-                Listadetenciones.append((inicio, fin))
-
-        return Listadetenciones
-
-
+    @staticmethod
     def promedio(resultados: dict[int, dict[str, float]], clave: str) -> float:
         suma = sum(r[clave] for r in resultados.values())
         return round(suma / len(resultados), 2)

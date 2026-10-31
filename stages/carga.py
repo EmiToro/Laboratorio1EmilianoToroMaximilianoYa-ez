@@ -15,11 +15,11 @@ class CargaExperimentos(EtapaPipeline[None, list[Experimento]]):
         contexto: ContextoPipeline,
     ) -> list[Experimento]:
         print(f" Buscando experimentos!!: {contexto.ruta_entrada.resolve()}")
-        experimentos = self._cargar_experimentos(contexto.ruta_entrada)        
+        experimentos = self._cargar_experimentos(contexto.ruta_entrada, contexto.fps)        
         print(f"  {len(experimentos)} experimentos cargados exitosamente!!")
         return experimentos
 
-    def _cargar_experimentos(self, ruta_entrada: Path) -> list[Experimento]:
+    def _cargar_experimentos(self, ruta_entrada: Path, fps_contexto: float | None) -> list[Experimento]:
         if ruta_entrada.is_file():  
             archivos = [ruta_entrada]
         else:  
@@ -28,7 +28,7 @@ class CargaExperimentos(EtapaPipeline[None, list[Experimento]]):
         experimentos = []
         for archivo in archivos:
             observaciones = []
-            fps = 30.0  
+            fps = fps_contexto if fps_contexto is not None else 30.0
             
             with open(archivo, "r", encoding="utf-8") as arch:
                 for linea in arch:
