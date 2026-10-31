@@ -6,8 +6,8 @@ from pipeline.etapa import EtapaPipeline
 
 
 
-UMBRAL_VELOCIDAD = 0.2  
-DURACION_MINIMA = 1
+VelUmbral = 0.2  
+duraMin = 1
 
 class AnalisisIndividual(EtapaPipeline[list[Experimento], list[Experimento]]):
 
@@ -75,18 +75,29 @@ class AnalisisIndividual(EtapaPipeline[list[Experimento], list[Experimento]]):
         trayectoria: Trayectoria,
         fps: float | None,
     ) -> list[tuple[int, int]]:
-        fps = fps if fps else 30.0
-        obs = trayectoria.observaciones
-        umbral_velocidad = 0.1
-        detenciones = []
-        
-        for i in range(len(obs) - 1):
-            p1, p2 = obs[i], obs[i+1]
-            dt = (p2.frame - p1.frame) / fps
-            if dt > 0:
-                dist = math.sqrt((p2.x - p1.x)**2 + (p2.y - p1.y)**2)
-                vel = dist / dt
-                if vel < umbral_velocidad:
-                    detenciones.append((p1.frame, p2.frame))
-                    
-        return detenciones
+        """Identifica intervalos de detención de una trayectoria."""
+        Listadetenciones = []
+        inicio = None
+
+        for frame_i, frame_f, velocidad in trayectoria.calcular_velocidades_tramos(fps):
+            if velocidad < VelUmbral:
+                if inicio is None:
+                    inicio = frame_i
+                fin = frame_f
+                
+            else:
+                if inicio is not None:
+                    if (fin - inicio) / fps >= duraMin:
+                        Listadetenciones.append((inicio, fin))
+                inicio = None
+
+        if inicio is not None:
+            if (fin - inicio) / fps >= duraMin:
+                Listadetenciones.append((inicio, fin))
+
+        return Listadetenciones
+
+
+    def promedio(resultados: dict[int, dict[str, float]], clave: str) -> float:
+        suma = sum(r[clave] for r in resultados.values())
+        return round(suma / len(resultados), 2)
