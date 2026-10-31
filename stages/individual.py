@@ -7,7 +7,7 @@ from pipeline.etapa import EtapaPipeline
 
 
 VelUmbral = 0.2  
-duraMin = 1
+duraMin = 0.5
 
 class AnalisisIndividual(EtapaPipeline[list[Experimento], list[Experimento]]):
 
