@@ -15,3 +15,6 @@ class Experimento:
     trayectorias: list[Trayectoria] = field(default_factory=list)
     resultados_individuales: dict[int, dict[str, float]] = field(default_factory=dict)
     resultados_colectivos: dict[str, float] = field(default_factory=dict)
+    resultados_zonas: dict[int, dict[str, float]] = field(default_factory=dict)
+    densidad_tiempo: list[tuple[float, float, float]] = field(default_factory=list)
+    resultados_flujo: dict[str, float] = field(default_factory=dict)
