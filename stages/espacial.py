@@ -1,3 +1,5 @@
+from math import dist
+
 from models.experimento import Experimento
 from pipeline.contexto import ContextoPipeline
 from pipeline.etapa import EtapaPipeline
@@ -11,71 +13,213 @@ class AnalisisEspacial(EtapaPipeline[list[Experimento], list[Experimento]]):
         contexto: ContextoPipeline,
     ) -> list[Experimento]:
         for expe in experimentos:
-            expe.zonas = self._analizar_zonas(expe)
-            expe.densidad = self._calcular_densidad(expe)
+            expe.zonas = self._analizar_zonas(expe, expe.fps)
+            expe.densidad = self._calcular_densidad(expe, expe.fps)
             expe.flujo = self._calcular_flujo(expe, expe.fps)
 
-            print(f" Análisis espacial y colectivo completado para: {expe.nombre}")
+            print(f"Análisis espacial completado para: {expe.nombre}")
 
         return experimentos
 
-    def _analizar_zonas(self, experimento: Experimento) -> dict[str, float]:
-        if not experimento.observaciones:
+    def _analizar_zonas(
+        self,
+        experimento: Experimento,
+        fps: float,
+    ) -> dict:
+        if not experimento.observaciones or fps <= 0:
             return {}
-        
+
         xs = [o.x for o in experimento.observaciones]
         ys = [o.y for o in experimento.observaciones]
-        
+
         min_x, max_x = min(xs), max(xs)
         min_y, max_y = min(ys), max(ys)
-        
-        return {
+
+        ancho = max_x - min_x
+        alto = max_y - min_y
+
+        if ancho <= 0:
+            return {}
+
+        limites = [
+            min_x,
+            min_x + ancho / 3,
+            min_x + 2 * ancho / 3,
+            max_x
+        ]
+
+        zonas = {}
+
+        for i in range(3):
+            nombre = f"zona_{i + 1}"
+            x_inicio = limites[i]
+            x_fin = limites[i + 1]
+
+            peatones = []
+            velocidades = []
+            tiempos = []
+
+            for trayectoria in experimento.trayectorias:
+                obs = sorted(trayectoria.observaciones, key=lambda o: o.frame)
+
+                puntos = [
+                    o for o in obs
+                    if x_inicio <= o.x <= x_fin
+                ]
+
+                if len(puntos) < 2:
+                    continue
+
+                tiempo = (puntos[-1].frame - puntos[0].frame) / fps
+
+                if tiempo <= 0:
+                    continue
+
+                distancia = sum(
+                    dist((a.x, a.y), (b.x, b.y))
+                    for a, b in zip(puntos, puntos[1:])
+                )
+
+                peatones.append(trayectoria.id_peaton)
+                tiempos.append(tiempo)
+                velocidades.append(distancia / tiempo)
+
+            zonas[nombre] = {
+                "peatones": len(set(peatones)),
+                "velocidad_media": round(
+                    sum(velocidades) / len(velocidades), 4
+                ) if velocidades else 0.0,
+                "tiempo_medio": round(
+                    sum(tiempos) / len(tiempos), 3
+                ) if tiempos else 0.0,
+                "x_inicio": round(x_inicio, 3),
+                "x_fin": round(x_fin, 3)
+            }
+
+        zonas["dimensiones"] = {
             "min_x": round(min_x, 3),
             "max_x": round(max_x, 3),
             "min_y": round(min_y, 3),
             "max_y": round(max_y, 3),
-            "ancho": round(max_x - min_x, 3),
-            "alto": round(max_y - min_y, 3)
+            "ancho": round(ancho, 3),
+            "alto": round(alto, 3)
         }
 
-    def _calcular_densidad(self, experimento: Experimento) -> dict[str, float]:
-        if not experimento.observaciones or not experimento.trayectorias:
-            return {"densidad": 0.0}
+        return zonas
+
+    def _calcular_densidad(
+        self,
+        experimento: Experimento,
+        fps: float,
+    ) -> dict:
+        if not experimento.observaciones or fps <= 0:
+            return {"densidades": [], "densidad_media": 0.0}
 
         xs = [o.x for o in experimento.observaciones]
         ys = [o.y for o in experimento.observaciones]
-        
-        area = (max(xs) - min(xs)) * (max(ys) - min(ys))
-        if area <= 0:
-            area = 1.0
 
-        total_peatones = len(experimento.trayectorias)
-        densidad_global = total_peatones / area
+        area = (max(xs) - min(xs)) * (max(ys) - min(ys))
+
+        if area <= 0:
+            return {"densidades": [], "densidad_media": 0.0}
+
+        frames = sorted(set(o.frame for o in experimento.observaciones))
+        intervalo = max(1, int(fps))
+
+        densidades = []
+
+        for frame in frames[::intervalo]:
+            peatones = {
+                o.id_peaton
+                for o in experimento.observaciones
+                if o.frame == frame
+            }
+
+            densidad = len(peatones) / area
+
+            densidades.append({
+                "frame": frame,
+                "tiempo": round(frame / fps, 3),
+                "peatones": len(peatones),
+                "densidad": round(densidad, 4)
+            })
+
+        promedio = (
+            sum(d["densidad"] for d in densidades) / len(densidades)
+            if densidades else 0.0
+        )
 
         return {
             "area_total": round(area, 3),
-            "total_peatones": total_peatones,
-            "densidad": round(densidad_global, 4)
+            "densidades": densidades,
+            "densidad_media": round(promedio, 4)
         }
 
     def _calcular_flujo(
         self,
         experimento: Experimento,
-        fps: float | None,
-    ) -> dict[str, float]:
-        fps = fps if fps else 30.0
-        obs = experimento.observaciones
-        if not obs:
-            return {"flujo": 0.0}
+        fps: float,
+    ) -> dict:
+        if not experimento.observaciones or fps <= 0:
+            return {"flujo": 0.0, "cruces": 0}
 
-        frames = [o.frame for o in obs]
-        min_frame, max_frame = min(frames), max(frames)
-        tiempo_total = (max_frame - min_frame) / fps if max_frame > min_frame else 1.0
-        
-        total_peatones = len(experimento.trayectorias)
-        flujo = total_peatones / tiempo_total if tiempo_total > 0 else 0.0
+        xs = [o.x for o in experimento.observaciones]
+        linea = (min(xs) + max(xs)) / 2
+
+        cruces = []
+
+        for trayectoria in experimento.trayectorias:
+            obs = sorted(trayectoria.observaciones, key=lambda o: o.frame)
+
+            for anterior, actual in zip(obs, obs[1:]):
+                if anterior.x < linea <= actual.x:
+                    cruces.append(actual.frame)
+                    break
+
+                if anterior.x > linea >= actual.x:
+                    cruces.append(actual.frame)
+                    break
+
+        if not cruces:
+            return {
+                "linea_transversal": round(linea, 3),
+                "cruces": 0,
+                "flujo": 0.0,
+                "intervalos": []
+            }
+
+        cruces.sort()
+
+        frames = [o.frame for o in experimento.observaciones]
+        tiempo_total = (max(frames) - min(frames)) / fps
+
+        flujo = len(cruces) / tiempo_total if tiempo_total > 0 else 0.0
+
+        intervalo_frames = max(1, int(fps * 10))
+        inicio = min(frames)
+        fin = max(frames)
+
+        intervalos = []
+
+        for frame_inicio in range(inicio, fin + 1, intervalo_frames):
+            frame_fin = frame_inicio + intervalo_frames
+
+            cantidad = sum(
+                1 for frame in cruces
+                if frame_inicio <= frame < frame_fin
+            )
+
+            intervalos.append({
+                "tiempo_inicio": round(frame_inicio / fps, 3),
+                "tiempo_fin": round(frame_fin / fps, 3),
+                "cruces": cantidad,
+                "flujo": round(cantidad / 10, 4)
+            })
 
         return {
-            "tiempo_total_experimento": round(tiempo_total, 3),
-            "flujo": round(flujo, 4)
+            "linea_transversal": round(linea, 3),
+            "cruces": len(cruces),
+            "tiempo_total": round(tiempo_total, 3),
+            "flujo": round(flujo, 4),
+            "intervalos": intervalos
         }

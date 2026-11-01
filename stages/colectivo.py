@@ -1,3 +1,4 @@
+
 from models.experimento import Experimento
 from models.resultado_analisis import ResultadoAnalisis
 from pipeline.contexto import ContextoPipeline
@@ -28,19 +29,33 @@ class ComparacionExperimentos(
 
         for expe in experimentos:
             total_peatones_global += len(expe.trayectorias)
+
             for tray in expe.trayectorias:
                 if hasattr(tray, "indicadores") and tray.indicadores:
                     if "velocidad_media" in tray.indicadores:
                         velocidades_medias.append(tray.indicadores["velocidad_media"])
+
                     if "eficiencia" in tray.indicadores:
                         eficiencias.append(tray.indicadores["eficiencia"])
-            
-            if hasattr(expe, "densidad") and "densidad" in expe.densidad:
-                densidades.append(expe.densidad["densidad"])
 
-        promedio_velocidad = sum(velocidades_medias) / len(velocidades_medias) if velocidades_medias else 0.0
-        promedio_eficiencia = sum(eficiencias) / len(eficiencias) if eficiencias else 0.0
-        promedio_densidad = sum(densidades) / len(densidades) if densidades else 0.0
+            if hasattr(expe, "densidad") and expe.densidad:
+                if "densidad_media" in expe.densidad:
+                    densidades.append(expe.densidad["densidad_media"])
+
+        promedio_velocidad = (
+            sum(velocidades_medias) / len(velocidades_medias)
+            if velocidades_medias else 0.0
+        )
+
+        promedio_eficiencia = (
+            sum(eficiencias) / len(eficiencias)
+            if eficiencias else 0.0
+        )
+
+        promedio_densidad = (
+            sum(densidades) / len(densidades)
+            if densidades else 0.0
+        )
 
         return {
             "total_experimentos": float(len(experimentos)),

@@ -20,26 +20,70 @@ class ExportacionResultados(EtapaPipeline[ResultadoAnalisis, None]):
 
     def _exportar(self, resultados: ResultadoAnalisis, ruta_salida: Path) -> None:
         archivo_comparacion = ruta_salida / "comparacion_global.csv"
+
         with open(archivo_comparacion, "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
             writer.writerow(["metrica", "valor"])
+
             for k, v in resultados.comparacion.items():
                 writer.writerow([k, v])
 
         for expe in resultados.experimentos:
             if not expe.trayectorias:
                 continue
+
             primera_tray = expe.trayectorias[0]
+
             if not hasattr(primera_tray, "indicadores") or not primera_tray.indicadores:
                 continue
 
             archivo_expe = ruta_salida / f"{expe.nombre}_indicadores.csv"
+
             with open(archivo_expe, "w", newline="", encoding="utf-8") as f:
                 writer = csv.writer(f)
-                cabeceras = ["id_peaton"] + list(primera_tray.indicadores.keys())
+
+                cabeceras = (
+                    ["id_peaton"]
+                    + list(primera_tray.indicadores.keys())
+                    + [
+                        "cantidad_detenciones",
+                        "tiempo_total_detenido",
+                        "porcentaje_detenido"
+                    ]
+                )
+
                 writer.writerow(cabeceras)
+
+                fps = expe.fps
 
                 for tray in expe.trayectorias:
                     indicadores = getattr(tray, "indicadores", {})
-                    fila = [tray.id_peaton] + [indicadores.get(k, 0.0) for k in primera_tray.indicadores.keys()]
+
+                    cantidad_detenciones = len(tray.detenciones)
+
+                    tiempo_detenido = sum(
+                        (fin - inicio) / fps
+                        for inicio, fin in tray.detenciones
+                    ) if fps > 0 else 0.0
+
+                    tiempo_total = tray.calcularTiempoTotal(fps)
+
+                    porcentaje_detenido = (
+                        tiempo_detenido / tiempo_total * 100
+                        if tiempo_total > 0 else 0.0
+                    )
+
+                    fila = (
+                        [tray.id_peaton]
+                        + [
+                            indicadores.get(k, 0.0)
+                            for k in primera_tray.indicadores.keys()
+                        ]
+                        + [
+                            cantidad_detenciones,
+                            round(tiempo_detenido, 3),
+                            round(porcentaje_detenido, 2)
+                        ]
+                    )
+
                     writer.writerow(fila)

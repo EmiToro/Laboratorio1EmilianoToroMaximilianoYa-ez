@@ -24,7 +24,9 @@ class Trayectoria:
         if len(self.observaciones) < 2 or fps <= 0:
             return 0.0
 
-        frames = self.observaciones[-1].frame - self.observaciones[0].frame
+        obs = sorted(self.observaciones, key=lambda o: o.frame)
+
+        frames = obs[-1].frame - obs[0].frame
         tiempo = frames / fps
 
         return self.calcular_distancia_total() / tiempo if tiempo > 0 else 0.0
@@ -33,22 +35,30 @@ class Trayectoria:
         if len(self.observaciones) < 2 or fps <= 0:
             return 0.0
 
-        return (self.observaciones[-1].frame - self.observaciones[0].frame) / fps
+        obs = sorted(self.observaciones, key=lambda o: o.frame)
+
+        return (obs[-1].frame - obs[0].frame) / fps
 
     def calcularVelocidades(self, fps: float) -> list[tuple[int, int, float]]:
         velocidades = []
 
-        p = self._puntos()
+        if fps <= 0:
+            return velocidades
 
-        for i in range(len(p) - 1):
-            p1 = self.observaciones[i]
-            p2 = self.observaciones[i + 1]
+        obs = sorted(self.observaciones, key=lambda o: o.frame)
 
-            distancia = dist(p[i], p[i + 1])
-            tiempo = (p2.frame - p1.frame) / fps
+        for anterior, actual in zip(obs, obs[1:]):
+            distancia = dist(
+                (anterior.x, anterior.y),
+                (actual.x, actual.y)
+            )
+
+            tiempo = (actual.frame - anterior.frame) / fps
 
             if tiempo > 0:
-                velocidades.append((p1.frame, p2.frame, distancia / tiempo))
+                velocidades.append(
+                    (anterior.frame, actual.frame, distancia / tiempo)
+                )
 
         return velocidades
 
@@ -59,3 +69,4 @@ class Trayectoria:
             (velocidad for frame_i, frame_f, velocidad in velocidades),
             default=0.0
         )
+
