@@ -1,8 +1,13 @@
+from collections import defaultdict
 from math import dist
 
 from models.experimento import Experimento
 from pipeline.contexto import ContextoPipeline
 from pipeline.etapa import EtapaPipeline
+
+# Los peatones caminan a lo largo del eje Y (el corredor mide ~14 m en Y
+# y ~5 m en X), por eso las zonas y la línea de flujo se definen sobre Y.
+SEGUNDOS_INTERVALO_FLUJO = 10
 
 
 class AnalisisEspacial(EtapaPipeline[list[Experimento], list[Experimento]]):
@@ -36,24 +41,25 @@ class AnalisisEspacial(EtapaPipeline[list[Experimento], list[Experimento]]):
         min_y, max_y = min(ys), max(ys)
 
         ancho = max_x - min_x
-        alto = max_y - min_y
+        largo = max_y - min_y
 
-        if ancho <= 0:
+        if largo <= 0:
             return {}
 
+        # Tres tramos a lo largo del recorrido (eje Y)
         limites = [
-            min_x,
-            min_x + ancho / 3,
-            min_x + 2 * ancho / 3,
-            max_x
+            min_y,
+            min_y + largo / 3,
+            min_y + 2 * largo / 3,
+            max_y
         ]
 
         zonas = {}
 
         for i in range(3):
             nombre = f"zona_{i + 1}"
-            x_inicio = limites[i]
-            x_fin = limites[i + 1]
+            y_inicio = limites[i]
+            y_fin = limites[i + 1]
 
             peatones = []
             velocidades = []
@@ -64,7 +70,7 @@ class AnalisisEspacial(EtapaPipeline[list[Experimento], list[Experimento]]):
 
                 puntos = [
                     o for o in obs
-                    if x_inicio <= o.x <= x_fin
+                    if y_inicio <= o.y <= y_fin
                 ]
 
                 if len(puntos) < 2:
@@ -92,8 +98,8 @@ class AnalisisEspacial(EtapaPipeline[list[Experimento], list[Experimento]]):
                 "tiempo_medio": round(
                     sum(tiempos) / len(tiempos), 3
                 ) if tiempos else 0.0,
-                "x_inicio": round(x_inicio, 3),
-                "x_fin": round(x_fin, 3)
+                "y_inicio": round(y_inicio, 3),
+                "y_fin": round(y_fin, 3)
             }
 
         zonas["dimensiones"] = {
@@ -102,7 +108,7 @@ class AnalisisEspacial(EtapaPipeline[list[Experimento], list[Experimento]]):
             "min_y": round(min_y, 3),
             "max_y": round(max_y, 3),
             "ancho": round(ancho, 3),
-            "alto": round(alto, 3)
+            "largo": round(largo, 3)
         }
 
         return zonas
@@ -123,24 +129,25 @@ class AnalisisEspacial(EtapaPipeline[list[Experimento], list[Experimento]]):
         if area <= 0:
             return {"densidades": [], "densidad_media": 0.0}
 
-        frames = sorted(set(o.frame for o in experimento.observaciones))
+        # Se agrupa una sola vez por frame (antes se recorrían todas las
+        # observaciones por cada frame, lo que era muy lento).
+        peatones_por_frame = defaultdict(set)
+        for o in experimento.observaciones:
+            peatones_por_frame[o.frame].add(o.id_peaton)
+
+        frames = sorted(peatones_por_frame)
         intervalo = max(1, int(fps))
 
         densidades = []
 
         for frame in frames[::intervalo]:
-            peatones = {
-                o.id_peaton
-                for o in experimento.observaciones
-                if o.frame == frame
-            }
-
-            densidad = len(peatones) / area
+            cantidad = len(peatones_por_frame[frame])
+            densidad = cantidad / area
 
             densidades.append({
                 "frame": frame,
                 "tiempo": round(frame / fps, 3),
-                "peatones": len(peatones),
+                "peatones": cantidad,
                 "densidad": round(densidad, 4)
             })
 
@@ -163,8 +170,8 @@ class AnalisisEspacial(EtapaPipeline[list[Experimento], list[Experimento]]):
         if not experimento.observaciones or fps <= 0:
             return {"flujo": 0.0, "cruces": 0}
 
-        xs = [o.x for o in experimento.observaciones]
-        linea = (min(xs) + max(xs)) / 2
+        ys = [o.y for o in experimento.observaciones]
+        linea = (min(ys) + max(ys)) / 2
 
         cruces = []
 
@@ -172,11 +179,11 @@ class AnalisisEspacial(EtapaPipeline[list[Experimento], list[Experimento]]):
             obs = sorted(trayectoria.observaciones, key=lambda o: o.frame)
 
             for anterior, actual in zip(obs, obs[1:]):
-                if anterior.x < linea <= actual.x:
+                if anterior.y < linea <= actual.y:
                     cruces.append(actual.frame)
                     break
 
-                if anterior.x > linea >= actual.x:
+                if anterior.y > linea >= actual.y:
                     cruces.append(actual.frame)
                     break
 
@@ -195,7 +202,7 @@ class AnalisisEspacial(EtapaPipeline[list[Experimento], list[Experimento]]):
 
         flujo = len(cruces) / tiempo_total if tiempo_total > 0 else 0.0
 
-        intervalo_frames = max(1, int(fps * 10))
+        intervalo_frames = max(1, int(fps * SEGUNDOS_INTERVALO_FLUJO))
         inicio = min(frames)
         fin = max(frames)
 
@@ -213,7 +220,7 @@ class AnalisisEspacial(EtapaPipeline[list[Experimento], list[Experimento]]):
                 "tiempo_inicio": round(frame_inicio / fps, 3),
                 "tiempo_fin": round(frame_fin / fps, 3),
                 "cruces": cantidad,
-                "flujo": round(cantidad / 10, 4)
+                "flujo": round(cantidad / SEGUNDOS_INTERVALO_FLUJO, 4)
             })
 
         return {

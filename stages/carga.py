@@ -5,6 +5,7 @@ from pipeline.contexto import ContextoPipeline
 from pipeline.etapa import EtapaPipeline
 from models.observacion import Observacion
 
+FPS_POR_DEFECTO = 16.0
 
 class CargaExperimentos(EtapaPipeline[None, list[Experimento]]):
 
@@ -62,7 +63,8 @@ class CargaExperimentos(EtapaPipeline[None, list[Experimento]]):
 
             observaciones = []
 
-            fps = fps_contexto if fps_contexto is not None else 16.0
+            fps = fps_contexto if fps_contexto is not None else FPS_POR_DEFECTO
+            fps_desde_encabezado = False
 
             factor_unidad = self._obtener_factor_unidad(archivo)
 
@@ -83,8 +85,9 @@ class CargaExperimentos(EtapaPipeline[None, list[Experimento]]):
 
                                 for i, p in enumerate(partes_fps):
 
-                                    if "framerate" in p.lower() and i + 1 < len(partes_fps):
+                                     if "framerate" in p.lower() and i + 1 < len(partes_fps):
                                         fps = float(partes_fps[i + 1])
+                                        fps_desde_encabezado = True
                                         break
 
                             except (ValueError, IndexError):
@@ -125,7 +128,11 @@ class CargaExperimentos(EtapaPipeline[None, list[Experimento]]):
 
                     except (ValueError, IndexError):
                         continue
-
+            if fps_contexto is None and not fps_desde_encabezado:
+                print(
+                    f"{archivo.name}: sin framerate en el archivo ni --fps; "
+                    f"se usa {FPS_POR_DEFECTO} fps por defecto."
+                )
             print(
                 f"{archivo.name}: "
                 f"{len(observaciones)} observaciones, "
